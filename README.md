@@ -207,14 +207,15 @@ override fun onDestroy() {
 
 ### Common Error Codes
 
-| Code | Meaning                                                     |
-| ---- | ----------------------------------------------------------- |
-| -1   | Message exceeds 1KB size limitation                         |
-| 1    | General error (check error message or logs for specifics)   |
-| 7    | Missing user permissions for messaging in Huawei Health App |
-| 16   | Watch connection not detected                               |
-| 200  | Required watch application not installed                    |
-| 201  | Watch application installed but currently inactive          |
+| Code | Meaning                                                                                                                                           |
+| ---- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
+| -1   | Message exceeds 1KB size limitation                                                                                                               |
+| 1    | General error (check error message or logs for specifics)                                                                                         |
+| 7    | Missing permissions in Huawei Health App                                                                                                          |
+| 16   | Watch not detected                                                                                                                                |
+| 200  | Watch application not installed                                                                                                                   |
+| 201  | Watch application installed but not running                                                                                                       |
+| 206  | Sending message to watch failed, could be because watch app is not running, watch got disconnected, or Huawei Health is not running in background |
 
 For the full list of error codes, please refer to the [official documentation - Result Code](https://developer.huawei.com/consumer/en/doc/connectivity-Guides/errocode-0000001054450278).
 
