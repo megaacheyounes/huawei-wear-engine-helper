@@ -9,12 +9,12 @@
  * Created 10 March 2025
  */
 
-
 package com.younes.wearenginehelper
 
 import android.content.Context
 import android.util.Log
 import com.huawei.wearengine.HiWear
+import com.huawei.wearengine.WearEngineException
 import com.huawei.wearengine.auth.AuthCallback
 import com.huawei.wearengine.auth.AuthClient
 import com.huawei.wearengine.auth.Permission
@@ -328,9 +328,10 @@ class WearEngineHelper private constructor(
                             }
                             .addOnFailureListener { e ->
                                 logError("Failed to register receiver", e)
+
                                 onError(
-                                    "Failed to register receiver",
-                                    WearEngineErrorCode.ERROR_CODE_GENERIC
+                                    getErrorMessage(e, "Failed to register receiver"),
+                                    getErrorCode(e)
                                 )
                             }
                     }
@@ -410,6 +411,7 @@ class WearEngineHelper private constructor(
                 onPermissionResult(true)
             }
         }
+
     }
 
     /**
@@ -467,10 +469,7 @@ class WearEngineHelper private constructor(
             }
             .addOnFailureListener { e ->
                 logError("Failed to get bonded devices", e)
-                onError(
-                    "Failed to get connected watches",
-                    WearEngineErrorCode.ERROR_CODE_GENERIC
-                )
+                onError(getErrorMessage(e, "There are no bound devices"), getErrorCode(e))
             }
     }
 
@@ -572,11 +571,14 @@ class WearEngineHelper private constructor(
                 }
             }.addOnFailureListener { e ->
                 logError("Error pinging watch app", e)
-                onError("Error checking watch app status", WearEngineErrorCode.ERROR_CODE_GENERIC)
+                onError(
+                    "Error checking watch app status",
+                    if (e is WearEngineException) e.errorCode else WearEngineErrorCode.ERROR_CODE_GENERIC
+                )
             }
         } catch (e: Exception) {
             logError("Exception while checking watch app status", e)
-            onError("Error checking watch app status", WearEngineErrorCode.ERROR_CODE_GENERIC)
+            onError(getErrorMessage(e, "Error checking watch app status"), getErrorCode(e))
         }
     }
 
@@ -624,9 +626,22 @@ class WearEngineHelper private constructor(
             })
         } catch (e: Exception) {
             logError("Error sending message to device", e)
-            onError("Error: ${e.message}", WearEngineErrorCode.ERROR_CODE_GENERIC)
+            onError(getErrorMessage(e), getErrorCode(e))
         }
     }
+
+    /**
+     * Returns error message from an exception.
+     */
+    private fun getErrorMessage(
+        e: Exception,
+        defaultMessage: String = SOMETHING_WENT_WRONG
+    ) = (if (e is WearEngineException) e.message else null) ?: defaultMessage
+
+    private fun getErrorCode(
+        e: Exception,
+        defaultCode: Int = WearEngineErrorCode.ERROR_CODE_GENERIC
+    ) = if (e is WearEngineException) e.errorCode else defaultCode
 
     /**
      * Logs a message if logging is enabled.
@@ -652,5 +667,8 @@ class WearEngineHelper private constructor(
 
         /** Maximum message size in bytes (1KB) */
         const val MAX_MESSAGE_SIZE = 1024
+
+        /** Default error message */
+        const val SOMETHING_WENT_WRONG = "Something went wrong"
     }
 }
