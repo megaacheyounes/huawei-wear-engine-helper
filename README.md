@@ -27,6 +27,16 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
 - Maximum message size is 1KB (1024 bytes)
 - Can only send text messages, sending Files will be supported later
 
+## Prerequisite
+
+### Apply for Wear Engine Permission
+
+To maintain compliance with many privacy and data protection laws governing the sensitive and personal information collected by Huawei wearables, you must obtain permission before accessing the Huawei Wear Engine Service.
+
+- Follow the steps in the [official documentation - Applying for the Wear Engine Service](https://developer.huawei.com/consumer/en/doc/connectivity-Guides/applying-wearengine-0000001050777982)
+
+<span style="background-color:red;color:white;">_**without WearEngine permission you can not use or test the SDK**_</span>
+
 ## Installation
 
 ### 1. Add WearEngineSDK
@@ -38,12 +48,6 @@ Follow the steps in the [official documentation - Integrating the Wear Engine SD
 Copy the file `WearEngineHelper.kt` into your project
 
 > for Java implementation, submit a [request](https://github.com/megaacheyounes/huawei-wear-engine-helper/issues/new)
-
-### Apply for Wear Engine Permission
-
-To maintain compliance with many privacy and data protection laws governing the sensitive and personal information collected by Huawei wearables, you must obtain permission before accessing the Huawei Wear Engine Service.
-
-- Follow the steps in the [official documentation - Applying for the Wear Engine Service](https://developer.huawei.com/consumer/en/doc/connectivity-Guides/applying-wearengine-0000001050777982)
 
 ## Usage
 
@@ -218,6 +222,35 @@ override fun onDestroy() {
 | 206  | Sending message to watch failed, could be because watch app is not running, watch got disconnected, or Huawei Health is not running in background |
 
 For the full list of error codes, please refer to the [official documentation - Result Code](https://developer.huawei.com/consumer/en/doc/connectivity-Guides/errocode-0000001054450278).
+
+## Sample project
+
+## Adding to Your Existing Project
+
+1. Copy `MainActivity.kt` and `WearEngineHelper.kt` into your project's source directory
+2. Update your `AndroidManifest.xml` to include `MainActivity` as the launcher activity
+3. In `MainActivity.kt`, update the `WearEngineHelper` initialization with your app's configuration
+4. Rebuild and run your application
+
+## Running the Standalone Sample
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/megaacheyounes/huawei-wear-engine-helper.git
+   ```
+2. Open the `example` folder with Android Studio
+3. Configure the project:
+   - Download and replace `agconnect-services.json` with your own
+   - Update the package name in `build.gradle`
+   - Configure your signing configuration in `build.gradle`
+   - Update the `WearEngineHelper` initialization in `MainActivity.kt`
+4. Build and run the sample project
+
+## Screenshots
+
+|               Sending Data to Watch                |               Receiving Data from Watch               |
+| :------------------------------------------------: | :---------------------------------------------------: |
+| <img src="screenshots/send_demo.jpg" width="300"/> | <img src="screenshots/receive_demo.jpg" width="300"/> |
 
 ## Contributing
 
