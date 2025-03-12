@@ -1,3 +1,14 @@
+/**
+ * WearEngineHelper - A wrapper for Huawei WearEngine SDK
+ *
+ * This helper simplifies communication between a mobile app and Huawei watches,
+ * supporting both legacy and next-generation HarmonyOS devices.
+ *
+ * Copyright (c) 2025
+ * Younes Megaache
+ * Created 12 March 2025
+ */
+
 package com.younes.wearenginehelper
 
 import android.os.Bundle
@@ -83,7 +94,6 @@ class MainActivity : ComponentActivity() {
 
     private var state by mutableStateOf(UiState())
 
-    //TODO: add your app information
     private val wearEngineHelper = WearEngineHelper.Builder(MyApp.instance)
         .setWatchPackageName("com.example.watchapp")
         .setWatchFingerprintDebug("WATCH_APP_DEBUG_FINGERPRINT")
@@ -157,8 +167,16 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         wearEngineHelper.hasConnectedWatch { hasWatch ->
-            if (hasWatch)
+            if (hasWatch) {
                 registerWearEngineReceiver()
+                state = state.copy(
+                    receivedMessage = "Waiting for the watch..."
+                )
+            } else {
+                state = state.copy(
+                    receivedMessage = "No watch connected!"
+                )
+            }
         }
     }
 
@@ -307,7 +325,7 @@ fun MessageTabs(
             Constants.TAB_RECEIVE -> {
                 MessageTextField(
                     label = "Received messages",
-                    value = receivedMessage ?: "Waiting for the watch...",
+                    value = receivedMessage ?: "",
                     readOnly = true,
                     onValueChange = {}
                 )
