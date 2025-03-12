@@ -156,7 +156,10 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerWearEngineReceiver()
+        wearEngineHelper.hasConnectedWatch { hasWatch ->
+            if (hasWatch)
+                registerWearEngineReceiver()
+        }
     }
 
     /**
