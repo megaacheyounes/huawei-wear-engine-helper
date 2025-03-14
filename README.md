@@ -223,7 +223,7 @@ override fun onDestroy() {
 
 For the full list of error codes, please refer to the [official documentation - Result Code](https://developer.huawei.com/consumer/en/doc/connectivity-Guides/errocode-0000001054450278).
 
-## Sample project
+## Demo project
 
 ## Adding to Your Existing Project
 
@@ -232,7 +232,7 @@ For the full list of error codes, please refer to the [official documentation - 
 3. In `MainActivity.kt`, update the `WearEngineHelper` initialization with your app's configuration
 4. Rebuild and run your application
 
-## Running the Standalone Sample
+## Running as Seperate App
 
 1. Clone the repository:
    ```bash
