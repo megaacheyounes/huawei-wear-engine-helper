@@ -250,7 +250,12 @@ class WearEngineHelper private constructor(
 
         // Check message size
         if (messageBytes.size > MAX_MESSAGE_SIZE) {
-            runOnMainThread { onError("Message size exceeds the ${MAX_MESSAGE_SIZE} byte limit", -1) }
+            runOnMainThread {
+                onError(
+                    "Message size exceeds the ${MAX_MESSAGE_SIZE} byte limit",
+                    -1
+                )
+            }
             return
         }
 
@@ -298,7 +303,12 @@ class WearEngineHelper private constructor(
 
         // Check message size
         if (messageBytes.size > MAX_LARGE_MESSAGE_SIZE) {
-            runOnMainThread { onError("Large message size exceeds the $MAX_LARGE_MESSAGE_SIZE byte limit", -1) }
+            runOnMainThread {
+                onError(
+                    "Large message size exceeds the $MAX_LARGE_MESSAGE_SIZE byte limit",
+                    -1
+                )
+            }
             return
         }
 
@@ -327,7 +337,12 @@ class WearEngineHelper private constructor(
                 tempFile.delete()
             }
             logError("Error creating temporary file for large message", e)
-            runOnMainThread { onError(getErrorMessage(e, "Failed to create temporary file"), getErrorCode(e)) }
+            runOnMainThread {
+                onError(
+                    getErrorMessage(e, "Failed to create temporary file"),
+                    getErrorCode(e)
+                )
+            }
         }
     }
 
@@ -344,7 +359,8 @@ class WearEngineHelper private constructor(
         file: File,
         onDeviceConnected: (String) -> Unit,
         onSuccess: () -> Unit,
-        onError: (String, Int) -> Unit
+        onError: (String, Int) -> Unit,
+        onProgress: ((Long) -> Unit)? = null
     ) {
         // Check file existence and size
         if (!file.exists()) {
@@ -387,6 +403,7 @@ class WearEngineHelper private constructor(
 
                                     p2pClient.send(connectedDevice, message, object : SendCallback {
                                         override fun onSendProgress(progress: Long) {
+                                            runOnMainThread { onProgress?.invoke(progress) }
                                             if (config.verboseLogging) {
                                                 log("File send progress: $progress")
                                             }
@@ -398,7 +415,12 @@ class WearEngineHelper private constructor(
                                                 runOnMainThread { onSuccess() }
                                             } else {
                                                 log("Failed to send file, code: $code")
-                                                runOnMainThread { onError("Failed to send file", code) }
+                                                runOnMainThread {
+                                                    onError(
+                                                        "Failed to send file",
+                                                        code
+                                                    )
+                                                }
                                             }
                                         }
                                     })
@@ -421,6 +443,7 @@ class WearEngineHelper private constructor(
             }
         }
     }
+
     /**
      * Checks if the user has a compatible Huawei watch connected.
      *
@@ -647,7 +670,12 @@ class WearEngineHelper private constructor(
             }
             .addOnFailureListener { e ->
                 logError("Failed to get bonded devices", e)
-                runOnMainThread { onError(getErrorMessage(e, "There are no bound devices"), getErrorCode(e)) }
+                runOnMainThread {
+                    onError(
+                        getErrorMessage(e, "There are no bound devices"),
+                        getErrorCode(e)
+                    )
+                }
             }
     }
 
@@ -764,7 +792,12 @@ class WearEngineHelper private constructor(
             }
         } catch (e: Exception) {
             logError("Exception while checking watch app status", e)
-            runOnMainThread { onError(getErrorMessage(e, "Error checking watch app status"), getErrorCode(e)) }
+            runOnMainThread {
+                onError(
+                    getErrorMessage(e, "Error checking watch app status"),
+                    getErrorCode(e)
+                )
+            }
         }
     }
 
@@ -778,10 +811,12 @@ class WearEngineHelper private constructor(
         onError: (String, Int) -> Unit
     ) {
         if (connectedDevice == null) {
-            runOnMainThread { onError(
-                "No connected watch found",
-                WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
-            ) }
+            runOnMainThread {
+                onError(
+                    "No connected watch found",
+                    WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
+                )
+            }
             return
         }
 
