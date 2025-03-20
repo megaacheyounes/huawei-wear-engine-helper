@@ -138,7 +138,7 @@ lifecycleScope.launch {
 }
 ```
 
-### Sending Messages to Watch
+### Sending Messages to Watch (max 1KB)
 
 ```kotlin
 wearEngineHelper.sendMessageToWatch(
@@ -151,6 +151,45 @@ wearEngineHelper.sendMessageToWatch(
     },
     onError = { errorMessage, errorCode ->
         Log.e("MyApp", "Error: $errorMessage (code: $errorCode)")
+    }
+)
+```
+
+### Sending Large Messages to Watch
+
+```kotlin
+wearEngineHelper.sendLargeMessageToWatch(
+    data = "Your long message data",
+    onDeviceConnected = { watchName ->
+        Log.d("MyApp", "Connected to watch: $watchName")
+    },
+    onSuccess = {
+        Log.d("MyApp", "Message sent successfully")
+    },
+    onError = { errorMessage, errorCode ->
+        Log.e("MyApp", "Error: $errorMessage (code: $errorCode)")
+    }
+)
+```
+
+### Sending File Messages to Watch (max 100MB)
+
+```kotlin
+val file = File(context.filesDir, "data.json")
+
+wearEngineHelper.sendFileToWatch(
+    file = file,
+    onDeviceConnected = { watchName ->
+        Log.d("MyApp", "Connected to watch: $watchName")
+    },
+    onSuccess = {
+        Log.d("MyApp", "File sent successfully")
+    },
+    onError = { errorMessage, errorCode ->
+        Log.e("MyApp", "Error: $errorMessage (code: $errorCode)")
+    },
+    onProgress = { progress ->
+        Log.d("MyApp", "File send progress: $progress")
     }
 )
 ```
