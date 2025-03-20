@@ -26,6 +26,7 @@ import com.huawei.wearengine.p2p.P2pClient
 import com.huawei.wearengine.p2p.Receiver
 import com.huawei.wearengine.p2p.SendCallback
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.File
 import kotlin.coroutines.resume
 
 /**
@@ -226,7 +227,7 @@ class WearEngineHelper private constructor(
     }
 
     /**
-     * Sends a string message to the connected Huawei watch.
+     * Sends a string message (max 1 KB) to the connected Huawei watch.
      *
      * @param data The data message to send (must be less than 1KB)
      * @param onDeviceConnected Callback when device is connected, provides connected watch name
@@ -256,6 +257,149 @@ class WearEngineHelper private constructor(
                     onDeviceConnected,
                     onSuccess,
                     onError
+                )
+            } else {
+                onError(
+                    "Permissions not granted",
+                    WearEngineErrorCode.ERROR_CODE_USER_UNAUTHORIZED_IN_HEALTH
+                )
+            }
+        }
+    }
+
+
+    /**
+     * Sends a large string message (max 4KB) to the connected Huawei watch.
+     * if the message is less than 1KB then use the method [sendMessageToWatch] which is fasterD
+     *
+     * Important: Wait for the previous message to complete before sending another one.
+     * Sending multiple messages concurrently may cause data corruption.
+     *
+     * @param data The data message to send (max 4KB)
+     * @param onDeviceConnected Callback when device is connected, provides connected watch name
+     * @param onSuccess Callback on successful message delivery
+     * @param onError Callback when an error occurs with error message and code
+     */
+    fun sendLargeMessageToWatch(
+        data: String,
+        onDeviceConnected: (String) -> Unit,
+        onSuccess: () -> Unit,
+        onError: (String, Int) -> Unit
+    ) {
+        // Convert data to bytes
+        val messageBytes = data.toByteArray()
+
+        // Check message size
+        if (messageBytes.size > MAX_LARGE_MESSAGE_SIZE) {
+            onError("Large message size exceeds the $MAX_LARGE_MESSAGE_SIZE byte limit", -1)
+            return
+        }
+
+        val tempFile = File(context.cacheDir, TEMP_FILE_NAME)
+        try {
+            // Create a temporary file
+            tempFile.writeBytes(messageBytes)
+
+            // Send the file
+            sendFileToWatch(
+                tempFile,
+                onDeviceConnected,
+                {
+                    // Delete temp file after successful send
+                    tempFile.delete()
+                    onSuccess()
+                },
+                { errorMsg, errorCode ->
+                    // Delete temp file on error
+                    tempFile.delete()
+                    onError(errorMsg, errorCode)
+                }
+            )
+        } catch (e: Exception) {
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            logError("Error creating temporary file for large message", e)
+            onError(getErrorMessage(e, "Failed to create temporary file"), getErrorCode(e))
+        }
+    }
+
+    /**
+     * Sends a file message (max 100MB) to the connected Huawei watch.
+     *
+     * @param file File message to send (must be less than 100MB)
+     * @param onDeviceConnected Callback when device is connected, provides connected watch name
+     * @param onSuccess Callback on successful message delivery
+     * @param onError Callback when an error occurs with error message and code
+     */
+    fun sendFileToWatch(
+        file: File,
+        onDeviceConnected: (String) -> Unit,
+        onSuccess: () -> Unit,
+        onError: (String, Int) -> Unit
+    ) {
+        // Check file existence and size
+        if (!file.exists()) {
+            onError("File does not exist", -1)
+            return
+        }
+
+        if (file.length() > MAX_FILE_SIZE) {
+            onError("File size exceeds the $MAX_FILE_SIZE byte limit", -1)
+            return
+        }
+
+        // Handle permissions and send file
+        checkAndRequestPermissions { permissionsGranted ->
+            if (permissionsGranted) {
+                getConnectedDevice(
+                    onDeviceConnected = onDeviceConnected,
+                    onError = onError,
+                    onSuccess = {
+                        if (connectedDevice == null) {
+                            onError(
+                                "No connected watch found",
+                                WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
+                            )
+                            return@getConnectedDevice
+                        }
+
+                        // Check if watch app is running
+                        checkWatchAppStatus(
+                            onAppRunning = {
+                                // Send file to watch
+                                val message = Message.Builder()
+                                    .setPayload(file)
+                                    .build()
+
+                                try {
+                                    log("Sending file to watch (${file.length()} bytes)")
+
+                                    p2pClient.send(connectedDevice, message, object : SendCallback {
+                                        override fun onSendProgress(progress: Long) {
+                                            if (config.verboseLogging) {
+                                                log("File send progress: $progress")
+                                            }
+                                        }
+
+                                        override fun onSendResult(code: Int) {
+                                            if (code == WearEngineErrorCode.ERROR_CODE_COMM_SUCCESS) {
+                                                log("File sent successfully")
+                                                onSuccess()
+                                            } else {
+                                                log("Failed to send file, code: $code")
+                                                onError("Failed to send file", code)
+                                            }
+                                        }
+                                    })
+                                } catch (e: Exception) {
+                                    logError("Error sending file to device", e)
+                                    onError(getErrorMessage(e), getErrorCode(e))
+                                }
+                            },
+                            onError = onError
+                        )
+                    }
                 )
             } else {
                 onError(
@@ -369,6 +513,7 @@ class WearEngineHelper private constructor(
         connectedDevice = null
         log("WearEngineHelper resources released")
     }
+
 
     /**
      * Coroutine-friendly version of hasConnectedWatch.
@@ -663,12 +808,21 @@ class WearEngineHelper private constructor(
 
     companion object {
         /** Default tag for logging */
-        const val DEFAULT_LOG_TAG = "WearEngineHelper"
+        private const val DEFAULT_LOG_TAG = "WearEngineHelper"
 
         /** Maximum message size in bytes (1KB) */
-        const val MAX_MESSAGE_SIZE = 1024
+        private const val MAX_MESSAGE_SIZE = 1024
+
+        /** Maximum large message size in bytes (4KB) */
+        private const val MAX_LARGE_MESSAGE_SIZE = 1024 * 4
+
+        /** Maximum file size in bytes (100MB) */
+        private const val MAX_FILE_SIZE = 1024 * 100 * 100
+
+        /** temprary file name used to store large message content */
+        private const val TEMP_FILE_NAME = "wear_message.txt"
 
         /** Default error message */
-        const val SOMETHING_WENT_WRONG = "Something went wrong"
+        private const val SOMETHING_WENT_WRONG = "Something went wrong"
     }
 }
