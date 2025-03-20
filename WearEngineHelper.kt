@@ -12,6 +12,8 @@
 package com.younes.wearenginehelper
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import com.huawei.wearengine.HiWear
 import com.huawei.wearengine.WearEngineException
@@ -26,6 +28,7 @@ import com.huawei.wearengine.p2p.P2pClient
 import com.huawei.wearengine.p2p.Receiver
 import com.huawei.wearengine.p2p.SendCallback
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.io.File
 import kotlin.coroutines.resume
 
 /**
@@ -187,6 +190,9 @@ class WearEngineHelper private constructor(
     private var connectedDevice: Device? = null
     private var receiver: Receiver? = null
 
+    // Main thread handler to dispatch callbacks
+    private val mainHandler = Handler(Looper.getMainLooper())
+
     // Client initialization
     private fun initP2pClient(): P2pClient {
         return HiWear.getP2pClient(context).apply {
@@ -226,7 +232,7 @@ class WearEngineHelper private constructor(
     }
 
     /**
-     * Sends a string message to the connected Huawei watch.
+     * Sends a string message (max 1 KB) to the connected Huawei watch.
      *
      * @param data The data message to send (must be less than 1KB)
      * @param onDeviceConnected Callback when device is connected, provides connected watch name
@@ -244,7 +250,7 @@ class WearEngineHelper private constructor(
 
         // Check message size
         if (messageBytes.size > MAX_MESSAGE_SIZE) {
-            onError("Message size exceeds the ${MAX_MESSAGE_SIZE} byte limit", -1)
+            runOnMainThread { onError("Message size exceeds the ${MAX_MESSAGE_SIZE} byte limit", -1) }
             return
         }
 
@@ -258,14 +264,163 @@ class WearEngineHelper private constructor(
                     onError
                 )
             } else {
-                onError(
-                    "Permissions not granted",
-                    WearEngineErrorCode.ERROR_CODE_USER_UNAUTHORIZED_IN_HEALTH
-                )
+                runOnMainThread {
+                    onError(
+                        "Permissions not granted",
+                        WearEngineErrorCode.ERROR_CODE_USER_UNAUTHORIZED_IN_HEALTH
+                    )
+                }
             }
         }
     }
 
+
+    /**
+     * Sends a large string message (max 4KB) to the connected Huawei watch.
+     * if the message is less than 1KB then use the method [sendMessageToWatch] which is fasterD
+     *
+     * Important: Wait for the previous message to complete before sending another one.
+     * Sending multiple messages concurrently may cause data corruption.
+     *
+     * @param data The data message to send (max 4KB)
+     * @param onDeviceConnected Callback when device is connected, provides connected watch name
+     * @param onSuccess Callback on successful message delivery
+     * @param onError Callback when an error occurs with error message and code
+     */
+    fun sendLargeMessageToWatch(
+        data: String,
+        onDeviceConnected: (String) -> Unit,
+        onSuccess: () -> Unit,
+        onError: (String, Int) -> Unit
+    ) {
+        // Convert data to bytes
+        val messageBytes = data.toByteArray()
+
+        // Check message size
+        if (messageBytes.size > MAX_LARGE_MESSAGE_SIZE) {
+            runOnMainThread { onError("Large message size exceeds the $MAX_LARGE_MESSAGE_SIZE byte limit", -1) }
+            return
+        }
+
+        val tempFile = File(context.cacheDir, TEMP_FILE_NAME)
+        try {
+            // Create a temporary file
+            tempFile.writeBytes(messageBytes)
+
+            // Send the file
+            sendFileToWatch(
+                tempFile,
+                onDeviceConnected,
+                {
+                    // Delete temp file after successful send
+                    tempFile.delete()
+                    runOnMainThread { onSuccess() }
+                },
+                { errorMsg, errorCode ->
+                    // Delete temp file on error
+                    tempFile.delete()
+                    runOnMainThread { onError(errorMsg, errorCode) }
+                }
+            )
+        } catch (e: Exception) {
+            if (tempFile.exists()) {
+                tempFile.delete()
+            }
+            logError("Error creating temporary file for large message", e)
+            runOnMainThread { onError(getErrorMessage(e, "Failed to create temporary file"), getErrorCode(e)) }
+        }
+    }
+
+
+    /**
+     * Sends a file message (max 100MB) to the connected Huawei watch.
+     *
+     * @param file File message to send (must be less than 100MB)
+     * @param onDeviceConnected Callback when device is connected, provides connected watch name
+     * @param onSuccess Callback on successful message delivery
+     * @param onError Callback when an error occurs with error message and code
+     */
+    fun sendFileToWatch(
+        file: File,
+        onDeviceConnected: (String) -> Unit,
+        onSuccess: () -> Unit,
+        onError: (String, Int) -> Unit
+    ) {
+        // Check file existence and size
+        if (!file.exists()) {
+            runOnMainThread { onError("File does not exist", -1) }
+            return
+        }
+
+        if (file.length() > MAX_FILE_SIZE) {
+            runOnMainThread { onError("File size exceeds the $MAX_FILE_SIZE byte limit", -1) }
+            return
+        }
+
+        // Handle permissions and send file
+        checkAndRequestPermissions { permissionsGranted ->
+            if (permissionsGranted) {
+                getConnectedDevice(
+                    onDeviceConnected = onDeviceConnected,
+                    onError = onError,
+                    onSuccess = {
+                        if (connectedDevice == null) {
+                            runOnMainThread {
+                                onError(
+                                    "No connected watch found",
+                                    WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
+                                )
+                            }
+                            return@getConnectedDevice
+                        }
+
+                        // Check if watch app is running
+                        checkWatchAppStatus(
+                            onAppRunning = {
+                                // Send file to watch
+                                val message = Message.Builder()
+                                    .setPayload(file)
+                                    .build()
+
+                                try {
+                                    log("Sending file to watch (${file.length()} bytes)")
+
+                                    p2pClient.send(connectedDevice, message, object : SendCallback {
+                                        override fun onSendProgress(progress: Long) {
+                                            if (config.verboseLogging) {
+                                                log("File send progress: $progress")
+                                            }
+                                        }
+
+                                        override fun onSendResult(code: Int) {
+                                            if (code == WearEngineErrorCode.ERROR_CODE_COMM_SUCCESS) {
+                                                log("File sent successfully")
+                                                runOnMainThread { onSuccess() }
+                                            } else {
+                                                log("Failed to send file, code: $code")
+                                                runOnMainThread { onError("Failed to send file", code) }
+                                            }
+                                        }
+                                    })
+                                } catch (e: Exception) {
+                                    logError("Error sending file to device", e)
+                                    runOnMainThread { onError(getErrorMessage(e), getErrorCode(e)) }
+                                }
+                            },
+                            onError = onError
+                        )
+                    }
+                )
+            } else {
+                runOnMainThread {
+                    onError(
+                        "Permissions not granted",
+                        WearEngineErrorCode.ERROR_CODE_USER_UNAUTHORIZED_IN_HEALTH
+                    )
+                }
+            }
+        }
+    }
     /**
      * Checks if the user has a compatible Huawei watch connected.
      *
@@ -290,6 +445,7 @@ class WearEngineHelper private constructor(
      * @param onMessageReceived Callback for received messages
      * @param onError Callback for errors
      */
+
     fun registerReceiver(
         onDeviceConnected: (String) -> Unit,
         onMessageReceived: (String) -> Unit,
@@ -302,10 +458,12 @@ class WearEngineHelper private constructor(
                     onError = onError,
                     onSuccess = {
                         if (connectedDevice == null) {
-                            onError(
-                                "No connected watch found",
-                                WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
-                            )
+                            runOnMainThread {
+                                onError(
+                                    "No connected watch found",
+                                    WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
+                                )
+                            }
                             return@getConnectedDevice
                         }
 
@@ -317,7 +475,7 @@ class WearEngineHelper private constructor(
                             log("Received message: $message")
                             message.data?.let {
                                 val messageString = it.toString(Charsets.UTF_8)
-                                onMessageReceived(messageString)
+                                runOnMainThread { onMessageReceived(messageString) }
                             }
                         }
 
@@ -328,19 +486,22 @@ class WearEngineHelper private constructor(
                             }
                             .addOnFailureListener { e ->
                                 logError("Failed to register receiver", e)
-
-                                onError(
-                                    getErrorMessage(e, "Failed to register receiver"),
-                                    getErrorCode(e)
-                                )
+                                runOnMainThread {
+                                    onError(
+                                        getErrorMessage(e, "Failed to register receiver"),
+                                        getErrorCode(e)
+                                    )
+                                }
                             }
                     }
                 )
             } else {
-                onError(
-                    "Permissions not granted",
-                    WearEngineErrorCode.ERROR_CODE_USER_UNAUTHORIZED_IN_HEALTH
-                )
+                runOnMainThread {
+                    onError(
+                        "Permissions not granted",
+                        WearEngineErrorCode.ERROR_CODE_USER_UNAUTHORIZED_IN_HEALTH
+                    )
+                }
             }
         }
     }
@@ -370,6 +531,7 @@ class WearEngineHelper private constructor(
         log("WearEngineHelper resources released")
     }
 
+
     /**
      * Coroutine-friendly version of hasConnectedWatch.
      * @return true if a compatible Huawei watch is connected
@@ -392,6 +554,18 @@ class WearEngineHelper private constructor(
         }
 
     /**************************** PRIVATE METHODS ************************/
+
+    /**
+     * Helper method to invoke callbacks on the main thread.
+     * If callback is already invoked on the main thread, then its executed immediately.
+     */
+    private fun runOnMainThread(action: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            action()
+        } else {
+            mainHandler.post(action)
+        }
+    }
 
     /**
      * Checks and requests required permissions.
@@ -428,7 +602,7 @@ class WearEngineHelper private constructor(
             checkWatchAppStatus(
                 onAppRunning = {
                     // Send message to watch
-                    dispatchMessage(
+                    dispatchMessageToWatch(
                         messageBytes,
                         onSuccess,
                         onError
@@ -453,10 +627,12 @@ class WearEngineHelper private constructor(
                 val device = devices.firstOrNull { it.isConnected }
 
                 if (device == null) {
-                    onError(
-                        "No connected watch found",
-                        WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
-                    )
+                    runOnMainThread {
+                        onError(
+                            "No connected watch found",
+                            WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
+                        )
+                    }
                     return@addOnSuccessListener
                 }
 
@@ -464,12 +640,14 @@ class WearEngineHelper private constructor(
                 connectedDevice = device
 
                 // Notify caller about connected device
-                onDeviceConnected(device.name)
-                onSuccess()
+                runOnMainThread {
+                    onDeviceConnected(device.name)
+                    onSuccess()
+                }
             }
             .addOnFailureListener { e ->
                 logError("Failed to get bonded devices", e)
-                onError(getErrorMessage(e, "There are no bound devices"), getErrorCode(e))
+                runOnMainThread { onError(getErrorMessage(e, "There are no bound devices"), getErrorCode(e)) }
             }
     }
 
@@ -532,10 +710,12 @@ class WearEngineHelper private constructor(
         onError: (String, Int) -> Unit
     ) {
         if (connectedDevice == null) {
-            onError(
-                "No connected watch found",
-                WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
-            )
+            runOnMainThread {
+                onError(
+                    "No connected watch found",
+                    WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
+                )
+            }
             return
         }
 
@@ -545,56 +725,63 @@ class WearEngineHelper private constructor(
                 when (resultCode) {
                     WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_RUNNING -> {
                         log("Watch app is running")
-                        onAppRunning()
+                        runOnMainThread { onAppRunning() }
                     }
 
                     WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_NOT_RUNNING -> {
                         log("Watch app is installed but not running")
-                        onError(
-                            "Watch app is installed but not running",
-                            WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_NOT_RUNNING
-                        )
+                        runOnMainThread {
+                            onError(
+                                "Watch app is installed but not running",
+                                WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_NOT_RUNNING
+                            )
+                        }
                     }
 
                     WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_NOT_EXIT -> {
                         log("Watch app is not installed")
-                        onError(
-                            "Watch app is not installed",
-                            WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_NOT_EXIT
-                        )
+                        runOnMainThread {
+                            onError(
+                                "Watch app is not installed",
+                                WearEngineErrorCode.ERROR_CODE_P2P_WATCH_APP_NOT_EXIT
+                            )
+                        }
                     }
 
                     else -> {
                         log("Ping failed with code: $resultCode")
-                        onError("Watch app check failed", resultCode)
+                        runOnMainThread { onError("Watch app check failed", resultCode) }
                     }
                 }
             }.addOnFailureListener { e ->
                 logError("Error pinging watch app", e)
-                onError(
-                    "Error checking watch app status",
-                    if (e is WearEngineException) e.errorCode else WearEngineErrorCode.ERROR_CODE_GENERIC
-                )
+                runOnMainThread {
+                    onError(
+                        "Error checking watch app status",
+                        if (e is WearEngineException) e.errorCode else WearEngineErrorCode.ERROR_CODE_GENERIC
+                    )
+                }
             }
         } catch (e: Exception) {
             logError("Exception while checking watch app status", e)
-            onError(getErrorMessage(e, "Error checking watch app status"), getErrorCode(e))
+            runOnMainThread { onError(getErrorMessage(e, "Error checking watch app status"), getErrorCode(e)) }
         }
     }
+
 
     /**
      * Dispatches a message to the connected watch device.
      */
-    private fun dispatchMessage(
+    private fun dispatchMessageToWatch(
         messageBytes: ByteArray,
         onSuccess: () -> Unit,
         onError: (String, Int) -> Unit
     ) {
         if (connectedDevice == null) {
-            onError(
+            runOnMainThread { onError(
                 "No connected watch found",
                 WearEngineErrorCode.ERROR_CODE_DEVICE_IS_NOT_CONNECTED
-            )
+            ) }
             return
         }
 
@@ -617,16 +804,16 @@ class WearEngineHelper private constructor(
                     log("Message sending result: $code")
                     if (code == WearEngineErrorCode.ERROR_CODE_COMM_SUCCESS) {
                         log("Message sent successfully")
-                        onSuccess()
+                        runOnMainThread { onSuccess() }
                     } else {
                         log("Failed to send message, code: $code")
-                        onError("Failed to send message", code)
+                        runOnMainThread { onError("Failed to send message", code) }
                     }
                 }
             })
         } catch (e: Exception) {
             logError("Error sending message to device", e)
-            onError(getErrorMessage(e), getErrorCode(e))
+            runOnMainThread { onError(getErrorMessage(e), getErrorCode(e)) }
         }
     }
 
@@ -663,12 +850,21 @@ class WearEngineHelper private constructor(
 
     companion object {
         /** Default tag for logging */
-        const val DEFAULT_LOG_TAG = "WearEngineHelper"
+        private const val DEFAULT_LOG_TAG = "WearEngineHelper"
 
         /** Maximum message size in bytes (1KB) */
-        const val MAX_MESSAGE_SIZE = 1024
+        private const val MAX_MESSAGE_SIZE = 1024
+
+        /** Maximum large message size in bytes (4KB) */
+        private const val MAX_LARGE_MESSAGE_SIZE = 1024 * 4
+
+        /** Maximum file size in bytes (100MB) */
+        private const val MAX_FILE_SIZE = 1024 * 100 * 100
+
+        /** temprary file name used to store large message content */
+        private const val TEMP_FILE_NAME = "wear_message.txt"
 
         /** Default error message */
-        const val SOMETHING_WENT_WRONG = "Something went wrong"
+        private const val SOMETHING_WENT_WRONG = "Something went wrong"
     }
 }
