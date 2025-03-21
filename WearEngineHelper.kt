@@ -472,7 +472,8 @@ class WearEngineHelper private constructor(
     fun registerReceiver(
         onDeviceConnected: (String) -> Unit,
         onMessageReceived: (String) -> Unit,
-        onError: (String, Int) -> Unit
+        onError: (String, Int) -> Unit,
+        onFileReceived: ((File) -> Unit)? = null,
     ) {
         checkAndRequestPermissions { permissionsGranted ->
             if (permissionsGranted) {
@@ -496,9 +497,13 @@ class WearEngineHelper private constructor(
                         // Create new receiver
                         receiver = Receiver { message ->
                             log("Received message: $message")
-                            message.data?.let {
-                                val messageString = it.toString(Charsets.UTF_8)
-                                runOnMainThread { onMessageReceived(messageString) }
+                            runOnMainThread {
+                                when (message.type) {
+                                    Message.MESSAGE_TYPE_FILE -> message.file?.let { onFileReceived?.invoke(it) }
+                                    else -> message.data?.let {
+                                        onMessageReceived(it.toString(Charsets.UTF_8))
+                                    }
+                                }
                             }
                         }
 
