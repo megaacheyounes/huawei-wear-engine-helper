@@ -206,6 +206,10 @@ wearEngineHelper.registerReceiver(
         Log.d("MyApp", "Received message: $message")
         // Process the message
     },
+    onFileReceived = { file ->
+        Log.d("MyApp", "Received message: ${file.path}")
+        // Process the file
+    },
     onError = { errorMessage, errorCode ->
         Log.e("MyApp", "Error: $errorMessage (code: $errorCode)")
     }
