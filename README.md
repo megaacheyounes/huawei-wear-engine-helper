@@ -25,7 +25,7 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
 ## Limitations
 
 - Maximum message size is 1KB (1024 bytes)
-- Can only send text messages, sending Files will be supported later
+- For larger messages, write them into a `.json` or `.txt` file, then send the file (update implementation on the smartwatch to parse the file accordingly)
 
 ## Prerequisite
 
