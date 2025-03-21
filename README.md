@@ -14,14 +14,6 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
 
 > submit a [feature request](https://github.com/megaacheyounes/huawei-wear-engine-helper/issues/new)
 
-## Prerequisites
-
-- Huawei Mobile Services (HMS) Core installed on the device
-- Huawei Health app installed on the device
-- A Huawei watch paired with the device
-- A companion app installed and running on the watch
-- Applied for Wear Engine Permission
-
 ## Limitations
 
 - Maximum message size is 1KB (1024 bytes)
@@ -29,13 +21,19 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
 
 ## Prerequisite
 
+- Huawei Mobile Services (HMS) Core installed on the device
+- Huawei Health app installed on the device
+- A Huawei watch paired with the device
+- A companion app installed and running on the watch
+- Applied for Wear Engine Permission
+
 ### Apply for Wear Engine Permission
 
 To maintain compliance with many privacy and data protection laws governing the sensitive and personal information collected by Huawei wearables, you must obtain permission before accessing the Huawei Wear Engine Service.
 
 - Follow the steps in the [official documentation - Applying for the Wear Engine Service](https://developer.huawei.com/consumer/en/doc/connectivity-Guides/applying-wearengine-0000001050777982)
 
-<span style="background-color:red;color:white;">_**without WearEngine permission you can not use or test the SDK**_</span>
+<span style="background-color:red;color:white;">_**without WearEngine permission you can not use or test the Wear Engine SDK**_</span>
 
 ## Installation
 
