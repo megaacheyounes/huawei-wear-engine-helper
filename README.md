@@ -194,6 +194,11 @@ wearEngineHelper.sendMessageToWatch(
 
 ### Sending Large Messages to Watch
 
+maximum allowed size:
+
+- smartwatch (wearable): 100 MB
+- sports watch (lite wearable): ~ 4KB
+
 ```kotlin
 wearEngineHelper.sendLargeMessageToWatch(
     data = "Your long message data",
@@ -210,6 +215,11 @@ wearEngineHelper.sendLargeMessageToWatch(
 ```
 
 ### Sending File Messages to Watch
+
+maximum allowed size:
+
+- smartwatch (wearable): 100 MB
+- sports watch (lite wearable): ~ 4KB
 
 ```kotlin
 val file = File(context.filesDir, "data.json")
