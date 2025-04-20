@@ -2,6 +2,43 @@
 
 A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communication between Android mobile apps and Huawei watches (HarmonyOS and HarmonyOS Next).
 
+## Contents
+
+- [WearEngineHelper (Android)](#wearenginehelper-android)
+  - [Contents](#contents)
+  - [Features](#features)
+  - [Prerequisites](#prerequisites)
+  - [Limitations](#limitations)
+  - [Prerequisite](#prerequisite)
+    - [Apply for Wear Engine Permission](#apply-for-wear-engine-permission)
+  - [Installation](#installation)
+    - [1. Add WearEngineSDK](#1-add-wearenginesdk)
+    - [2. Add WearEngineHelper](#2-add-wearenginehelper)
+  - [Usage](#usage)
+    - [Configuration](#configuration)
+    - [Initialization](#initialization)
+      - [Watch Package Name](#watch-package-name)
+      - [Debug Fingerprint](#debug-fingerprint)
+      - [Release Fingerprint](#release-fingerprint)
+      - [HarmonyOS Next Package Name](#harmonyos-next-package-name)
+      - [HarmonyOS Next App ID](#harmonyos-next-app-id)
+    - [Check for Connected Watch](#check-for-connected-watch)
+    - [Sending Messages to Watch (max 1KB)](#sending-messages-to-watch-max-1kb)
+    - [Sending Large Messages to Watch](#sending-large-messages-to-watch)
+    - [Sending File Messages to Watch](#sending-file-messages-to-watch)
+    - [Receiving Messages from Watch](#receiving-messages-from-watch)
+    - [Error Handling](#error-handling)
+    - [Common Error Codes](#common-error-codes)
+  - [Demo project](#demo-project)
+  - [Adding to Your Existing Project](#adding-to-your-existing-project)
+  - [Running as Seperate App](#running-as-seperate-app)
+  - [Screenshots](#screenshots)
+  - [Demo UI](#demo-ui)
+  - [Contributing](#contributing)
+  - [License](#license)
+
+---
+
 ## Features
 
 - Simple API for sending and receiving messages between mobile and watch apps
@@ -172,7 +209,7 @@ wearEngineHelper.sendLargeMessageToWatch(
 )
 ```
 
-### Sending File Messages to Watch (max 100MB)
+### Sending File Messages to Watch
 
 ```kotlin
 val file = File(context.filesDir, "data.json")
@@ -294,6 +331,16 @@ For the full list of error codes, please refer to the [official documentation - 
 |               Sending Data to Watch                |               Receiving Data from Watch               |
 | :------------------------------------------------: | :---------------------------------------------------: |
 | <img src="screenshots/send_demo.jpg" width="300"/> | <img src="screenshots/receive_demo.jpg" width="300"/> |
+
+## Demo UI
+
+I have included Demo User Interface for reference, it provides clean, minimal design with clear captions, logical flow and clear loading, error, and success states.
+
+1- All composables can be found in `WearEngineExampleUI.kt`
+
+2- The watch and phone illustrations (icons) can be found in the example project (`example/app/src/main/res/drawable`)
+
+<img src="screenshots/example_ui.png" width="800"/>
 
 ## Contributing
 
