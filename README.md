@@ -6,9 +6,9 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
 
 - [WearEngineHelper (Android)](#wearenginehelper-android)
   - [Contents](#contents)
+  - [How Wear Engine SDK Works](#how-wear-engine-sdk-works)
   - [Features](#features)
   - [Prerequisites](#prerequisites)
-  - [How Wear Engine SDK Works](#how-wear-engine-sdk-works)
     - [Apply for Wear Engine Permission](#apply-for-wear-engine-permission)
   - [Installation](#installation)
     - [1. Add WearEngineSDK](#1-add-wearenginesdk)
@@ -37,26 +37,6 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
   - [License](#license)
 
 ---
-
-## Features
-
-- Simple API for sending and receiving messages between mobile and watch apps
-- Automatic handling of permissions
-- Support for both legacy and next-generation Huawei watch devices
-- Builder pattern for easy configuration
-- Comprehensive error handling
-- Coroutine support
-- Detailed logging options
-
-> submit a [feature request](https://github.com/megaacheyounes/huawei-wear-engine-helper/issues/new)
-
-## Prerequisites
-
-- Huawei Mobile Services (HMS) Core installed on the device
-- Huawei Health app installed on the device
-- A Huawei watch paired with the device
-- A companion app installed and running on the watch
-- Applied for Wear Engine Permission
 
 ## How Wear Engine SDK Works
 
@@ -96,6 +76,28 @@ Here’s a breakdown of each step:
    - The wearable device send back an acknowledgment.
 
 > WearEngineHelper class simplify these steps by handling device availability checks, authorization, querying connected device and sending text messages and files
+
+---
+
+## Features
+
+- Simple API for sending and receiving messages between mobile and watch apps
+- Automatic handling of permissions
+- Support for both legacy and next-generation Huawei watch devices
+- Builder pattern for easy configuration
+- Comprehensive error handling
+- Coroutine support
+- Detailed logging options
+
+> submit a [feature request](https://github.com/megaacheyounes/huawei-wear-engine-helper/issues/new)
+
+## Prerequisites
+
+- Huawei Mobile Services (HMS) Core installed on the device
+- Huawei Health app installed on the device
+- A Huawei watch paired with the device
+- A companion app installed and running on the watch
+- Applied for Wear Engine Permission
 
 ### Apply for Wear Engine Permission
 
