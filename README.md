@@ -8,8 +8,7 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
   - [Contents](#contents)
   - [Features](#features)
   - [Prerequisites](#prerequisites)
-  - [Limitations](#limitations)
-  - [Prerequisite](#prerequisite)
+  - [How Wear Engine SDK Works](#how-wear-engine-sdk-works)
     - [Apply for Wear Engine Permission](#apply-for-wear-engine-permission)
   - [Installation](#installation)
     - [1. Add WearEngineSDK](#1-add-wearenginesdk)
@@ -59,12 +58,44 @@ A lightweight Kotlin wrapper for Huawei's WearEngine SDK that simplifies communi
 - A companion app installed and running on the watch
 - Applied for Wear Engine Permission
 
-## Limitations
+## How Wear Engine SDK Works
 
-- Maximum message size is 1KB (1024 bytes)
-- For larger messages, write them into a `.json` or `.txt` file, then send the file (update implementation on the smartwatch to parse the file accordingly)
+<img src="screenshots/wear_engine_flow.png" width="800" />
 
-## Prerequisite
+The diagram above shows how an **Android app** communicates with a **Huawei wearable app** using the **Wear Engine SDK**.
+
+Here’s a breakdown of each step:
+
+1. **Check Available Devices**
+
+   - The Android app asks the Wear Engine SDK if there are any Huawei wearables connected.
+   - The SDK queries the Huawei Health app, which manages connected devices.
+   - The result is a simple **true/false** response (whether wearable devices are available).
+
+2. **Authorization**
+
+   - The Android app requests authorization to use Wear Engine services.
+   - The SDK communicates with the Huawei Health app to check if the user is logged in and has granted permission.
+   - The result is a **boolean** (authorized or not authorized).
+
+3. **Query Connected Devices**
+
+   - Once authorized, the app can request a list of connected devices.
+   - The Huawei Health app provides device details like **device ID, type, and status**.
+
+4. **Check if the Wearable App is Installed**
+
+   - The Android app asks whether the companion wearable app is installed on the device.
+   - The SDK checks directly with the wearable device.
+   - The wearable device queries the wearable app and responds with the installation status.
+
+5. **Send Text Message**
+
+   - If the wearable app is installed, the Android app can send a message through the SDK.
+   - The message is delivered to the wearable app running on the device.
+   - The wearable device send back an acknowledgment.
+
+> WearEngineHelper class simplify these steps by handling device availability checks, authorization, querying connected device and sending text messages and files
 
 ### Apply for Wear Engine Permission
 
