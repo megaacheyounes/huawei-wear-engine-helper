@@ -95,12 +95,16 @@ class MainActivity : ComponentActivity() {
     private var state by mutableStateOf(UiState())
 
     private val wearEngineHelper = WearEngineHelper.Builder(MyApp.instance)
-        .setWatchPackageName("com.example.watchapp")
-        .setWatchFingerprintDebug("WATCH_APP_DEBUG_FINGERPRINT")
-        .setWatchFingerprintRelease("WATCH_APP_RELEASE_FINGERPRINT")
         .setPermissions(arrayOf(Permission.DEVICE_MANAGER)) //Wear Engine permission applied for
-        .setWatchPackageNameNextGen("com.example.watchapp.nextgen") // For next-gen watches
-        .setWatchAppId("WATCH_APP_ID") // For next-gen watches
+
+        // For old watch models or sports watch (lite wearable)
+        .setLegacyWatchFingerprintDebug("com.example.watchapp.lite_BBexample/debugQW=")
+        .setLegacyWatchFingerprintRelease("com.example.watchapp.lite_BBexample/releaseQW=")
+
+        //watch package name (bundle name) and app ID (scroll for more info)
+        .setWatchPackageName("com.example.watchapp") // For next-gen watches
+        .setWatchAppId("1234567890")
+
         /**
          * if your debug and release mobile app have different package names
          * set the setDebugMode flag to TRUE during development and testing, then change it manually to FALSE before creating a release build.

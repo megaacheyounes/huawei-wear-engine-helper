@@ -31,6 +31,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import kotlin.coroutines.resume
 
+
 /**
  * WearEngineHelper provides a simplified interface for communication with Huawei watches.
  *
@@ -46,38 +47,69 @@ class WearEngineHelper private constructor(
     private val context: Context,
     private val config: WearEngineConfig
 ) {
+
+
     /**
      * Configuration class for WearEngineHelper
      */
     data class WearEngineConfig(
-        /** Package name for legacy/lite watch devices */
-        val watchPackageName: String,
         /** Debug fingerprint for legacy/lite devices */
-        val watchFingerprintDebug: String,
+        val legacyWatchFingerprintDebug: String,
         /** Release fingerprint for legacy/lite devices */
-        val watchFingerprintRelease: String,
+        val legacyWatchFingerprintRelease: String,
         /** Package name for next-gen watches (null uses legacy name) */
-        val watchPackageNameNext: String? = null,
+        val watchPackageName: String? = null, // This will now be set by the new setWatchPackageName
         /** App ID for next-gen watches */
         val watchAppId: String? = null,
+
         /** List of required permissions */
         val permissions: Array<Permission> = arrayOf(Permission.DEVICE_MANAGER),
+
         /** Debug mode flag (true for development, false for production) */
         val isDebugMode: Boolean = false,
         /** Custom log tag */
         val logTag: String = DEFAULT_LOG_TAG,
         /** Enable detailed logging */
         val verboseLogging: Boolean = false
-    )
+    ) {
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            other as WearEngineConfig
+
+            if (legacyWatchFingerprintDebug != other.legacyWatchFingerprintDebug) return false
+            if (legacyWatchFingerprintRelease != other.legacyWatchFingerprintRelease) return false
+            if (watchPackageName != other.watchPackageName) return false
+            if (watchAppId != other.watchAppId) return false
+            if (!permissions.contentEquals(other.permissions)) return false
+            if (isDebugMode != other.isDebugMode) return false
+            if (logTag != other.logTag) return false
+            if (verboseLogging != other.verboseLogging) return false
+
+            return true
+        }
+
+        override fun hashCode(): Int {
+            var result = watchPackageName.hashCode()
+            result = 31 * result + legacyWatchFingerprintRelease.hashCode()
+            result = 31 * result + (watchAppId?.hashCode() ?: 0)
+            result = 31 * result + permissions.contentHashCode()
+            result = 31 * result + isDebugMode.hashCode()
+            result = 31 * result + logTag.hashCode()
+            result = 31 * result + verboseLogging.hashCode()
+            return result
+        }
+    }
 
     /**
      * Builder for WearEngineHelper configuration
      */
     class Builder(private val context: Context) {
-        private var watchPackageName: String? = null
-        private var watchFingerprintDebug: String? = null
-        private var watchFingerprintRelease: String? = null
-        private var watchPackageNameNext: String? = null
+        //        private var legacyWatchPackageNameInternal: String? = null // Internal holder for the original package name concept
+        private var legacyWatchFingerprintDebug: String? = null
+        private var legacyWatchFingerprintRelease: String? = null
+        private var watchPackageName: String? = null // This is the new unified package name
         private var watchAppId: String? = null
         private var permissions: Array<Permission> = arrayOf(Permission.DEVICE_MANAGER)
         private var isDebugMode: Boolean = false
@@ -85,36 +117,29 @@ class WearEngineHelper private constructor(
         private var verboseLogging: Boolean = false
 
         /**
-         * Sets the package name for legacy/lite watch devices.
-         * @param packageName The watch app's package name
-         */
-        fun setWatchPackageName(packageName: String) = apply {
-            this.watchPackageName = packageName
-        }
-
-        /**
          * Sets the debug fingerprint for legacy/lite watch devices.
          * @param fingerprint The debug version fingerprint
          */
-        fun setWatchFingerprintDebug(fingerprint: String) = apply {
-            this.watchFingerprintDebug = fingerprint
+        fun setLegacyWatchFingerprintDebug(fingerprint: String) = apply {
+            this.legacyWatchFingerprintDebug = fingerprint
         }
 
         /**
          * Sets the release fingerprint for legacy/lite watch devices.
          * @param fingerprint The release version fingerprint
          */
-        fun setWatchFingerprintRelease(fingerprint: String) = apply {
-            this.watchFingerprintRelease = fingerprint
+        fun setLegacyWatchFingerprintRelease(fingerprint: String) = apply {
+            this.legacyWatchFingerprintRelease = fingerprint
         }
 
         /**
-         * Sets the package name for next-gen watch devices.
-         * Required only for supporting both legacy and new watch devices.
-         * @param packageName The next-gen watch app's package name
+         * Sets the package name for the watch application.
+         * For legacy devices, this is also used if a specific legacy package name isn't set.
+         * For next-gen devices, this is the primary package name.
+         * @param packageName The watch app's package name
          */
-        fun setWatchPackageNameNextGen(packageName: String) = apply {
-            this.watchPackageNameNext = packageName
+        fun setWatchPackageName(packageName: String) = apply {
+            this.watchPackageName = packageName
         }
 
         /**
@@ -158,19 +183,15 @@ class WearEngineHelper private constructor(
          * @throws IllegalArgumentException if required parameters are missing
          */
         fun build(): WearEngineHelper {
-            // Validate required parameters
-            val packageName =
-                watchPackageName ?: throw IllegalArgumentException("Watch package name must be set")
-            val fingerprintDebug = watchFingerprintDebug
-                ?: throw IllegalArgumentException("Debug fingerprint must be set")
-            val fingerprintRelease = watchFingerprintRelease
-                ?: throw IllegalArgumentException("Release fingerprint must be set")
+            val fingerprintDebug = legacyWatchFingerprintDebug
+                ?: throw IllegalArgumentException("Legacy debug fingerprint must be set")
+            val fingerprintRelease = legacyWatchFingerprintRelease
+                ?: throw IllegalArgumentException("Legacy release fingerprint must be set")
 
             val config = WearEngineConfig(
-                watchPackageName = packageName,
-                watchFingerprintDebug = fingerprintDebug,
-                watchFingerprintRelease = fingerprintRelease,
-                watchPackageNameNext = watchPackageNameNext,
+                legacyWatchFingerprintDebug = fingerprintDebug,
+                legacyWatchFingerprintRelease = fingerprintRelease,
+                watchPackageName = watchPackageName,
                 watchAppId = watchAppId,
                 permissions = permissions,
                 isDebugMode = isDebugMode,
@@ -188,6 +209,7 @@ class WearEngineHelper private constructor(
     private val p2pClient: P2pClient by lazy { initP2pClient() }
 
     private var connectedDevice: Device? = null
+    private var isLiteWearable: Boolean? = null
     private var receiver: Receiver? = null
 
     // Main thread handler to dispatch callbacks
@@ -196,39 +218,24 @@ class WearEngineHelper private constructor(
     // Client initialization
     private fun initP2pClient(): P2pClient {
         return HiWear.getP2pClient(context).apply {
-            val isNextGen = connectedDevice?.let {
-                isNextGenDevice(it.model)
+            isLiteWearable = connectedDevice?.let {
+                it.deviceType == DEVICE_TYPE_LITE_WEARABLE
             } ?: false
 
-            log("Initializing P2pClient, isNextGen: $isNextGen")
+            log("Initializing P2pClient, isLiteWearable: $isLiteWearable")
 
-            setPeerPkgName(
-                if (isNextGen && config.watchPackageNameNext != null)
-                    config.watchPackageNameNext
-                else
-                    config.watchPackageName
-            )
+            setPeerPkgName(config.watchPackageName)
 
-            setPeerFingerPrint(
-                if (isNextGen && config.watchAppId != null)
-                    config.watchAppId
-                else if (config.isDebugMode)
-                    config.watchFingerprintDebug
-                else
-                    config.watchFingerprintRelease
-            )
+            if (isLiteWearable == true) {
+                if (config.isDebugMode) {
+                    setPeerFingerPrint(config.legacyWatchFingerprintDebug)
+                } else {
+                    setPeerFingerPrint(config.legacyWatchFingerprintRelease)
+                }
+            } else {
+                setPeerFingerPrint(config.watchAppId)
+            }
         }
-    }
-
-    /**
-     * Checks if a device is a next-generation watch device.
-     * @param deviceModel The device model string
-     * @return true if it's a next-gen device, false otherwise
-     */
-    private fun isNextGenDevice(deviceModel: String): Boolean {
-        val keywords = listOf("rts", "soc", "rates")
-        val model = deviceModel.lowercase()
-        return keywords.any { keyword -> model.contains(keyword) }
     }
 
     /**
@@ -249,10 +256,10 @@ class WearEngineHelper private constructor(
         val messageBytes = data.toByteArray()
 
         // Check message size
-        if (messageBytes.size > MAX_MESSAGE_SIZE) {
+        if (isLiteWearable == true && messageBytes.size > MAX_MESSAGE_SIZE) {
             runOnMainThread {
                 onError(
-                    "Message size exceeds the ${MAX_MESSAGE_SIZE} byte limit",
+                    "Message size exceeds the $MAX_MESSAGE_SIZE byte limit",
                     -1
                 )
             }
@@ -345,7 +352,6 @@ class WearEngineHelper private constructor(
             }
         }
     }
-
 
     /**
      * Sends a file message (max 100MB) to the connected Huawei watch.
@@ -499,7 +505,12 @@ class WearEngineHelper private constructor(
                             log("Received message: $message")
                             runOnMainThread {
                                 when (message.type) {
-                                    Message.MESSAGE_TYPE_FILE -> message.file?.let { onFileReceived?.invoke(it) }
+                                    Message.MESSAGE_TYPE_FILE -> message.file?.let {
+                                        onFileReceived?.invoke(
+                                            it
+                                        )
+                                    }
+
                                     else -> message.data?.let {
                                         onMessageReceived(it.toString(Charsets.UTF_8))
                                     }
@@ -903,6 +914,9 @@ class WearEngineHelper private constructor(
 
         /** temprary file name used to store large message content */
         private const val TEMP_FILE_NAME = "wear_message.txt"
+
+        /**Lite wearable refer to Huawei sports watches like HUAWEI GT 5, FIT 3 or Bands like Huawei Band 10, which differ from smart watches **/
+        private const val DEVICE_TYPE_LITE_WEARABLE = 0
 
         /** Default error message */
         private const val SOMETHING_WENT_WRONG = "Something went wrong"
