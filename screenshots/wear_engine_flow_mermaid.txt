@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant A as Mobile App
+    participant W as Wear Engine SDK
+    participant H as Huawei Health App
+    participant D as Wearable Device
+    participant WA as Wearable App
+
+    %% Authentication
+    A->>W: Check if user has available devices
+    W->>H: Request authentication (Health login)
+    H->>A: Return auth token
+
+    %% Query connected devices
+    A->>W: Query connected devices
+    W->>H: Get device list
+    H->>W: Return connected devices
+    W->>A: Provide device info (Device ID, type, status)
+
+    %% Check wearable app installation
+    A->>W: Check if wearable app is installed (AppID/Package)
+    W->>D: Query wearable device
+    D->>WA: Verify app installation
+    WA->>D: Respond (Running/Installed/Not Installed)
+    D->>W: Return app status
+    W->>A: App installation status
+
+    %% Send text message
+    A->>W: Send message (text payload)
+    W->>D: Encrypt and forward message to wearable
+    D->>WA: Decrypt and deliver message
+    WA-->>A: Acknowledge receipt (optional)
