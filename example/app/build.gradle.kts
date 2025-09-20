@@ -53,10 +53,10 @@ android {
 
         debug {
             versionNameSuffix = "-DEBUG"
-            signingConfig = signingConfigs.getByName("main")
+//            signingConfig = signingConfigs.getByName("main")
         }
         release {
-            signingConfig = signingConfigs.getByName("main")
+//            signingConfig = signingConfigs.getByName("main")
             isMinifyEnabled = true //true
             isDebuggable = false
 
